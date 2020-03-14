@@ -50,3 +50,11 @@ When you are done adding stuff, always ALWAYS end your session with:
 ```
 session.close()
 ```
+
+## Problems
+
+If you get an error saying you don't have a specific package just type into the Windows Command Processor:
+```
+pip install <package-name>
+```
+That should install your missing package. Keep doing this forr each package you need to install.
