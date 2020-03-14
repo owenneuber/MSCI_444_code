@@ -45,3 +45,8 @@ session.rollback()
 and that should clean things up.
 
 Feel free to add as many rows as you'd like to any tables.
+
+When you are done adding stuff, always ALWAYS end your session with:
+```
+session.close()
+```
