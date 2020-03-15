@@ -22,7 +22,10 @@ from werkzeug.urls import url_parse
 def index():
     ########## Display Table ############
     inventories = []
-    for inventory in InventoryItems.query.all():
+    inv_for_display = InventoryItems.query.all() # inefficient
+    if current_user.supplier_id: # if they are a supplier, they should only see their own products
+        inv_for_display = InventoryItems.query.filter_by(supplier_id=current_user.supplier_id).all()
+    for inventory in inv_for_display:
         inventories.append({
                 'id':inventory.id,
                 'item_name':inventory.item_name,
@@ -37,7 +40,6 @@ def index():
                 })
     # TODO: add in the functionally determined stuff like reorder point and order quantity
     # TODO: Send emails and parse the outputs
-    # TODO: change what supplier and view-only users see.
     ############ Place an Order ################
     form = OrderForm()
     if form.validate_on_submit():
@@ -50,21 +52,9 @@ def index():
         db.session.commit()
         flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
         return redirect(url_for('index'))
-    
+    ################################
     
     return render_template('index.html', title='Home', inventories=inventories, form=form)
-
-"""
-class OrderForm(FlaskForm):
-    product_id = IntegerField('Product ID', validators=[DataRequired()])
-    quantity = IntegerField("Order Quantity", validators=[DataRequired()])
-    submit = SubmitField('Place Order')
-    
-    def validate_order(self, product_id):
-        product = InventoryItems.query.filter_by(id=product_id.data).first()
-        if product is None:
-            raise ValidationError("Choose an existing product ID.")
-            """
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -84,22 +74,8 @@ def login():
         return redirect(next_page)
     return render_template('login.html', title='Sign In', form=form)
 
+
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-"""
-<html>
-    <head>
-        {% if title %}
-        <title>{{ title }} - Microblog</title>
-        {% else %}
-        <title>Welcome to Microblog!</title>
-        {% endif %}
-    </head>
-    <body>
-        <h1>Hello, {{ user.username }}!</h1>
-    </body>
-</html>
-"""
