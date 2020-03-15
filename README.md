@@ -28,6 +28,7 @@ session = Session()
 
 Then to add users, do the following:
 ```
+from models import *
 user = Users(user_name="owen",user_type="admin")
 session.add(user)
 session.commit()
