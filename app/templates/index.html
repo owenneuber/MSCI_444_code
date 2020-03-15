@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>{{ current_user.user_type[0]|upper}}{{current_user.user_type[1:] }} Screen</h2>
+	<h3>Place an Order: </h3>
+	<form action="" method="post">{{ form.hidden_tag() }}
+		<div>{{ form.product_id(size=32) }} {{ form.quantity(size=32) }} {{ form.submit() }}</div>
+		<div>{% for error in form.product_id.errors %}
+	        <span style="color: red;">[{{ error }}]</span>
+	        {% endfor %}
+			{% for error in form.quantity.errors %}
+	        <span style="color: red;">[{{ error }}]</span>
+	        {% endfor %}
+		</div>
+	</form>
+	<table style="width:100%">
+		<tr>
+			<th>ID</th>
+			<th>Name</th>
+			<th>Type</th>
+			<th>Supplier</th>
+			<th>SKUs</th>
+			<th>Lead Time</th>
+			<th>Ordering Cost</th>
+			<th>Holding Cost</th>
+			<th>Variable Cost</th>
+			<th>Demand</th>
+		</tr>
+    	{% for inventory in inventories %}
+		<tr>
+			<th>{{ inventory.id }}</th>
+			<th>{{ inventory.item_name }}</th>
+			<th>{{ inventory.inventory_type }}</th>
+			<th>{{ inventory.supplier }}</th>
+			<th>{{ inventory.SKUs }}</th>
+			<th>{{ inventory.lead_time }}</th>
+			<th>{{ inventory.ordering_cost }}</th>
+			<th>{{ inventory.holding_cost }}</th>
+			<th>{{ inventory.variable_cost }}</th>
+			<th>{{ inventory.demand }}</th>
+		</tr>
+    	{% endfor %}
+	</table>
+{% endblock %}

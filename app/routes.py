@@ -7,31 +7,20 @@ Created on Sat Mar 14 15:39:03 2020
 
 from flask import render_template, flash, redirect, url_for, request
 from app import app, db
-from app.forms import LoginForm
+from app.forms import LoginForm, OrderForm
 from app.models import Users, Suppliers, Orders, InventoryInOrder, InventoryItems
 from flask_login import current_user, login_user, logout_user, login_required
+from datetime import datetime, timedelta
 # from sqlalchemy.orm import sessionmaker
 from werkzeug.urls import url_parse
 #engine = create_engine(DATABASE_URI)
 #session = Session()
 
-@app.route('/')
-@app.route('/index')
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
 @login_required
 def index():
-    """
-    posts = [
-        {
-            'author': {'user_name': 'John'},
-            'body': 'Beautiful day in Portland!'
-        },
-        {
-            'author': {'user_name': 'Susan'},
-            'body': 'The Avengers movie was so cool!'
-        }
-    ]
-    """
-    
+    ########## Display Table ############
     inventories = []
     for inventory in InventoryItems.query.all():
         inventories.append({
@@ -46,9 +35,36 @@ def index():
                 'variable_cost':inventory.variable_cost,
                 'demand':inventory.demand,
                 })
-    # TODO: add in the functionally determined stuff like reorder point        
+    # TODO: add in the functionally determined stuff like reorder point and order quantity
+    # TODO: Send emails and parse the outputs
+    # TODO: change what supplier and view-only users see.
+    ############ Place an Order ################
+    form = OrderForm()
+    if form.validate_on_submit():
+        product = InventoryItems.query.filter_by(id=form.product_id.data).first()
+        order = Orders(user_id=current_user.id, supplier_id=product.supplier_id, order_ETA=datetime.utcnow().date() + timedelta(days=product.lead_time))
+        db.session.add(order)
+        db.session.commit()
+        inv_in_order = InventoryInOrder(order_id=order.id, SKUs=form.quantity.data, inventory_id=product.id)
+        db.session.add(inv_in_order)
+        db.session.commit()
+        flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
+        return redirect(url_for('index'))
     
-    return render_template('index.html', title='Home', inventories=inventories)
+    
+    return render_template('index.html', title='Home', inventories=inventories, form=form)
+
+"""
+class OrderForm(FlaskForm):
+    product_id = IntegerField('Product ID', validators=[DataRequired()])
+    quantity = IntegerField("Order Quantity", validators=[DataRequired()])
+    submit = SubmitField('Place Order')
+    
+    def validate_order(self, product_id):
+        product = InventoryItems.query.filter_by(id=product_id.data).first()
+        if product is None:
+            raise ValidationError("Choose an existing product ID.")
+            """
 
 
 @app.route('/login', methods=['GET', 'POST'])

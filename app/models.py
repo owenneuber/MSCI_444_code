@@ -44,7 +44,6 @@ class Suppliers(db.Model): #Supplier Table
 class Orders(db.Model): #Orders Table
     __tablename__ = 'Orders'
     id = db.Column(db.Integer,primary_key=True)
-    time_stamp = db.Column(db.String)
     user_id = db.Column(db.Integer, db.ForeignKey("Users.id"))
     supplier_id = db.Column(db.Integer, db.ForeignKey("Suppliers.id"))
     order_placed = db.Column(db.DateTime, index=True, default=datetime.utcnow)
@@ -54,8 +53,8 @@ class Orders(db.Model): #Orders Table
     user = db.relationship('Users', foreign_keys=[user_id])
 
     def __repr__(self):
-        return "<Users(OrderID='{}',TimeStamp='{}', UserID={}, SupplierID={}, Order_ETA={}))>"\
-                .format(self.id, self.time_stamp, self.user_id, self.supplier_id,self.order_ETA)
+        return "<Users(OrderID='{}',OrderPlaced='{}', UserID={}, SupplierID={}, Order_ETA={}))>"\
+                .format(self.id, self.order_placed, self.user_id, self.supplier_id,self.order_ETA)
 
 class InventoryInOrder(db.Model): #table for Inventory in order
     __tablename__ = 'InventoryInOrder'
