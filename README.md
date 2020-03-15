@@ -18,7 +18,11 @@ In a python session, (in the same directory as your downloaded files) run the fo
 
 ```
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+
+DATABASE_URI = 'postgres+psycopg2://postgres:q1w2e3@localhost:5432/Inventory'
 engine = create_engine(DATABASE_URI)
+Session = sessionmaker(bind=engine)
 session = Session()
 ```
 
