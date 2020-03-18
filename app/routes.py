@@ -9,6 +9,7 @@ from flask import render_template, flash, redirect, url_for, request
 from app import app, db
 from app.forms import LoginForm, OrderForm
 from app.models import Users, Suppliers, Orders, InventoryInOrder, InventoryItems
+from app.place_order import send_order
 from flask_login import current_user, login_user, logout_user, login_required
 from datetime import datetime, timedelta
 # from sqlalchemy.orm import sessionmaker
@@ -50,6 +51,7 @@ def index():
         inv_in_order = InventoryInOrder(order_id=order.id, SKUs=form.quantity.data, inventory_id=product.id)
         db.session.add(inv_in_order)
         db.session.commit()
+        send_order(order.id)
         flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
         return redirect(url_for('index'))
     ################################
