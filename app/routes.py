@@ -23,9 +23,9 @@ from werkzeug.urls import url_parse
 def index():
     ########## Display Table ############
     inventories = []
-    inv_for_display = InventoryItems.query.order_by(InventoryItems.id).all() # inefficient
+    inv_for_display = InventoryItems.query.order_by(InventoryItems.id) # default ordering    
     if current_user.supplier_id: # if they are a supplier, they should only see their own products
-        inv_for_display = InventoryItems.query.filter_by(supplier_id=current_user.supplier_id).order_by(InventoryItems.id).all()
+        inv_for_display = inv_for_display.filter_by(supplier_id=current_user.supplier_id)
     else: # otherwise, check for a delivery confirmation
         responses = read_response() #dictionary of emails
         refresh = False
@@ -57,7 +57,7 @@ def index():
             if refresh:
                 return redirect(url_for('index')) # refresh the page to show the user the flashed messages
             
-    for inventory in inv_for_display:
+    for inventory in inv_for_display.all():
         inventories.append({
                 'id':inventory.id,
                 'item_name':inventory.item_name,
@@ -71,7 +71,6 @@ def index():
                 'demand':inventory.demand,
                 })
     # TODO: add in the functionally determined optimal order quantity and Re-order point
-    # TODO: create buttons that allow inventory to be sorted (for status that will be WIP vs. complete)
     ############ Place an Order ################
     form = OrderForm()
     if form.validate_on_submit():
@@ -147,3 +146,276 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+
+@app.route('/namesort', methods=['GET', 'POST'])
+@login_required
+def namesort(): # hack to quickly get sorting to work. Basically just duplicating index a bunch
+    ########## Display Table ############
+    inventories = []
+    inv_for_display = InventoryItems.query.order_by(InventoryItems.item_name, InventoryItems.id) # default ordering    
+    if current_user.supplier_id: # if they are a supplier, they should only see their own products
+        inv_for_display = inv_for_display.filter_by(supplier_id=current_user.supplier_id)
+    else: # otherwise, check for a delivery confirmation
+        responses = read_response() #dictionary of emails
+        refresh = False
+        if responses:
+            for order_id in responses:
+                order = Orders.query.filter_by(id=order_id).first()
+                if order.is_confirmed or order.is_confirmed == False: # unconfirmed/undenined orders are None
+                    continue # this order has already been confirmed or declined and the db updated. The email has not been deleted yet. Ignore it
+                if responses[order_id]: # if the order was confirmed
+                    order.is_confirmed = True
+                    db.session.add(order)
+                    db.session.commit()
+                    ####### Update the inventory quantities ########
+                    order_inventory = InventoryInOrder.query.filter_by(order_id=order_id).all()
+                    for ordered_inv in order_inventory:
+                        ordered_inv.inventory.SKUs += ordered_inv.SKUs
+                        db.session.add(ordered_inv.inventory)
+                        db.session.commit()
+                    flash("Note: Order number {} was confirmed. Expected delivery date of {}. The database has been updated."\
+                          .format(order_id, order.order_ETA))
+                    refresh = True
+                else:
+                    order.is_confirmed = False
+                    db.session.add(order)
+                    db.session.commit()
+                    flash("Note: Order number {} was declined".format(order_id))
+                    refresh = True
+                    
+            if refresh:
+                return redirect(url_for('namesort')) # refresh the page to show the user the flashed messages
+            
+    for inventory in inv_for_display.all():
+        inventories.append({
+                'id':inventory.id,
+                'item_name':inventory.item_name,
+                'inventory_type':inventory.inventory_type,
+                'supplier':inventory.supplier.name,
+                'SKUs':inventory.SKUs,
+                'lead_time':inventory.lead_time,
+                'ordering_cost':inventory.ordering_cost,
+                'holding_cost':inventory.holding_cost,
+                'variable_cost':inventory.variable_cost,
+                'demand':inventory.demand,
+                })
+    ############ Place an Order ################
+    form = OrderForm()
+    if form.validate_on_submit():
+        product = InventoryItems.query.filter_by(id=form.product_id.data).first()
+        order = Orders(user_id=current_user.id, supplier_id=product.supplier_id, order_ETA=datetime.utcnow().date() + timedelta(days=product.lead_time))
+        db.session.add(order)
+        db.session.commit()
+        inv_in_order = InventoryInOrder(order_id=order.id, SKUs=form.quantity.data, inventory_id=product.id)
+        db.session.add(inv_in_order)
+        db.session.commit()
+        send_order(order.id)
+        flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
+        return redirect(url_for('namesort'))
+    
+    return render_template('namesort.html', title='Home', inventories=inventories, form=form)
+
+@app.route('/typesort', methods=['GET', 'POST'])
+@login_required
+def typesort(): # hack to quickly get sorting to work. Basically just duplicating index a bunch
+    ########## Display Table ############
+    inventories = []
+    inv_for_display = InventoryItems.query.order_by(InventoryItems.inventory_type, InventoryItems.id)   
+    if current_user.supplier_id: # if they are a supplier, they should only see their own products
+        inv_for_display = inv_for_display.filter_by(supplier_id=current_user.supplier_id)
+    else: # otherwise, check for a delivery confirmation
+        responses = read_response() #dictionary of emails
+        refresh = False
+        if responses:
+            for order_id in responses:
+                order = Orders.query.filter_by(id=order_id).first()
+                if order.is_confirmed or order.is_confirmed == False: # unconfirmed/undenined orders are None
+                    continue # this order has already been confirmed or declined and the db updated. The email has not been deleted yet. Ignore it
+                if responses[order_id]: # if the order was confirmed
+                    order.is_confirmed = True
+                    db.session.add(order)
+                    db.session.commit()
+                    ####### Update the inventory quantities ########
+                    order_inventory = InventoryInOrder.query.filter_by(order_id=order_id).all()
+                    for ordered_inv in order_inventory:
+                        ordered_inv.inventory.SKUs += ordered_inv.SKUs
+                        db.session.add(ordered_inv.inventory)
+                        db.session.commit()
+                    flash("Note: Order number {} was confirmed. Expected delivery date of {}. The database has been updated."\
+                          .format(order_id, order.order_ETA))
+                    refresh = True
+                else:
+                    order.is_confirmed = False
+                    db.session.add(order)
+                    db.session.commit()
+                    flash("Note: Order number {} was declined".format(order_id))
+                    refresh = True
+                    
+            if refresh:
+                return redirect(url_for('typesort')) # refresh the page to show the user the flashed messages
+            
+    for inventory in inv_for_display.all():
+        inventories.append({
+                'id':inventory.id,
+                'item_name':inventory.item_name,
+                'inventory_type':inventory.inventory_type,
+                'supplier':inventory.supplier.name,
+                'SKUs':inventory.SKUs,
+                'lead_time':inventory.lead_time,
+                'ordering_cost':inventory.ordering_cost,
+                'holding_cost':inventory.holding_cost,
+                'variable_cost':inventory.variable_cost,
+                'demand':inventory.demand,
+                })
+    ############ Place an Order ################
+    form = OrderForm()
+    if form.validate_on_submit():
+        product = InventoryItems.query.filter_by(id=form.product_id.data).first()
+        order = Orders(user_id=current_user.id, supplier_id=product.supplier_id, order_ETA=datetime.utcnow().date() + timedelta(days=product.lead_time))
+        db.session.add(order)
+        db.session.commit()
+        inv_in_order = InventoryInOrder(order_id=order.id, SKUs=form.quantity.data, inventory_id=product.id)
+        db.session.add(inv_in_order)
+        db.session.commit()
+        send_order(order.id)
+        flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
+        return redirect(url_for('typesort'))
+    
+    return render_template('typesort.html', title='Home', inventories=inventories, form=form)
+
+@app.route('/costsort', methods=['GET', 'POST'])
+@login_required
+def costsort(): # hack to quickly get sorting to work. Basically just duplicating index a bunch
+    ########## Display Table ############
+    inventories = []
+    inv_for_display = InventoryItems.query.order_by(InventoryItems.variable_cost, InventoryItems.id) # default ordering    
+    if current_user.supplier_id: # if they are a supplier, they should only see their own products
+        inv_for_display = inv_for_display.filter_by(supplier_id=current_user.supplier_id)
+    else: # otherwise, check for a delivery confirmation
+        responses = read_response() #dictionary of emails
+        refresh = False
+        if responses:
+            for order_id in responses:
+                order = Orders.query.filter_by(id=order_id).first()
+                if order.is_confirmed or order.is_confirmed == False: # unconfirmed/undenined orders are None
+                    continue # this order has already been confirmed or declined and the db updated. The email has not been deleted yet. Ignore it
+                if responses[order_id]: # if the order was confirmed
+                    order.is_confirmed = True
+                    db.session.add(order)
+                    db.session.commit()
+                    ####### Update the inventory quantities ########
+                    order_inventory = InventoryInOrder.query.filter_by(order_id=order_id).all()
+                    for ordered_inv in order_inventory:
+                        ordered_inv.inventory.SKUs += ordered_inv.SKUs
+                        db.session.add(ordered_inv.inventory)
+                        db.session.commit()
+                    flash("Note: Order number {} was confirmed. Expected delivery date of {}. The database has been updated."\
+                          .format(order_id, order.order_ETA))
+                    refresh = True
+                else:
+                    order.is_confirmed = False
+                    db.session.add(order)
+                    db.session.commit()
+                    flash("Note: Order number {} was declined".format(order_id))
+                    refresh = True
+                    
+            if refresh:
+                return redirect(url_for('costsort')) # refresh the page to show the user the flashed messages
+            
+    for inventory in inv_for_display.all():
+        inventories.append({
+                'id':inventory.id,
+                'item_name':inventory.item_name,
+                'inventory_type':inventory.inventory_type,
+                'supplier':inventory.supplier.name,
+                'SKUs':inventory.SKUs,
+                'lead_time':inventory.lead_time,
+                'ordering_cost':inventory.ordering_cost,
+                'holding_cost':inventory.holding_cost,
+                'variable_cost':inventory.variable_cost,
+                'demand':inventory.demand,
+                })
+    ############ Place an Order ################
+    form = OrderForm()
+    if form.validate_on_submit():
+        product = InventoryItems.query.filter_by(id=form.product_id.data).first()
+        order = Orders(user_id=current_user.id, supplier_id=product.supplier_id, order_ETA=datetime.utcnow().date() + timedelta(days=product.lead_time))
+        db.session.add(order)
+        db.session.commit()
+        inv_in_order = InventoryInOrder(order_id=order.id, SKUs=form.quantity.data, inventory_id=product.id)
+        db.session.add(inv_in_order)
+        db.session.commit()
+        send_order(order.id)
+        flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
+        return redirect(url_for('costsort'))
+    
+    return render_template('costsort.html', title='Home', inventories=inventories, form=form)
+
+@app.route('/suppliersort', methods=['GET', 'POST'])
+@login_required
+def suppliersort(): # hack to quickly get sorting to work. Basically just duplicating index a bunch
+    ########## Display Table ############
+    inventories = []
+    inv_for_display = InventoryItems.query.order_by(InventoryItems.supplier_id, InventoryItems.id) # default ordering    
+    if current_user.supplier_id: # if they are a supplier, they should only see their own products
+        inv_for_display = inv_for_display.filter_by(supplier_id=current_user.supplier_id)
+    else: # otherwise, check for a delivery confirmation
+        responses = read_response() #dictionary of emails
+        refresh = False
+        if responses:
+            for order_id in responses:
+                order = Orders.query.filter_by(id=order_id).first()
+                if order.is_confirmed or order.is_confirmed == False: # unconfirmed/undenined orders are None
+                    continue # this order has already been confirmed or declined and the db updated. The email has not been deleted yet. Ignore it
+                if responses[order_id]: # if the order was confirmed
+                    order.is_confirmed = True
+                    db.session.add(order)
+                    db.session.commit()
+                    ####### Update the inventory quantities ########
+                    order_inventory = InventoryInOrder.query.filter_by(order_id=order_id).all()
+                    for ordered_inv in order_inventory:
+                        ordered_inv.inventory.SKUs += ordered_inv.SKUs
+                        db.session.add(ordered_inv.inventory)
+                        db.session.commit()
+                    flash("Note: Order number {} was confirmed. Expected delivery date of {}. The database has been updated."\
+                          .format(order_id, order.order_ETA))
+                    refresh = True
+                else:
+                    order.is_confirmed = False
+                    db.session.add(order)
+                    db.session.commit()
+                    flash("Note: Order number {} was declined".format(order_id))
+                    refresh = True
+                    
+            if refresh:
+                return redirect(url_for('suppliersort')) # refresh the page to show the user the flashed messages
+            
+    for inventory in inv_for_display.all():
+        inventories.append({
+                'id':inventory.id,
+                'item_name':inventory.item_name,
+                'inventory_type':inventory.inventory_type,
+                'supplier':inventory.supplier.name,
+                'SKUs':inventory.SKUs,
+                'lead_time':inventory.lead_time,
+                'ordering_cost':inventory.ordering_cost,
+                'holding_cost':inventory.holding_cost,
+                'variable_cost':inventory.variable_cost,
+                'demand':inventory.demand,
+                })
+    ############ Place an Order ################
+    form = OrderForm()
+    if form.validate_on_submit():
+        product = InventoryItems.query.filter_by(id=form.product_id.data).first()
+        order = Orders(user_id=current_user.id, supplier_id=product.supplier_id, order_ETA=datetime.utcnow().date() + timedelta(days=product.lead_time))
+        db.session.add(order)
+        db.session.commit()
+        inv_in_order = InventoryInOrder(order_id=order.id, SKUs=form.quantity.data, inventory_id=product.id)
+        db.session.add(inv_in_order)
+        db.session.commit()
+        send_order(order.id)
+        flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
+        return redirect(url_for('suppliersort'))
+    
+    return render_template('suppliersort.html', title='Home', inventories=inventories, form=form)
