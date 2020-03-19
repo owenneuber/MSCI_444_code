@@ -8,8 +8,9 @@ Created on Sun Mar 15 19:42:51 2020
 import smtplib, ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from app.models import Orders, Users, Suppliers, InventoryInOrder, InventoryItems
+from app.models import Orders, InventoryInOrder
 import imaplib
+import email
 
 def send_order(order_id):
     """ Take in the order_id integer and then accesses the database to extract
@@ -71,24 +72,43 @@ def read_response():
     a dictionary of the format {{order_id:True},{order_id:Flase},...} where True
     corresponds to a confirmed order and False corresponds to a declined order. """
     
-    # see https://codehandbook.org/how-to-read-email-from-gmail-using-python/ for code
+    # see https://medium.com/@sdoshi579/to-read-emails-and-download-attachments-in-python-6d7d6b60269 for code base
     
-    port = 465  # For SSL
-    smtp_server = "smtp.gmail.com"
-    email = "msci444ims@gmail.com"  # Enter your address
+    email_account = "msci444ims@gmail.com"  # Enter your address
     password = "Let'sgo!"
     
-    mail = imaplib.IMAP4_SSL(smtp_server)
-    mail.login(email,password)
-    
+    mail = imaplib.IMAP4_SSL("imap.gmail.com")
+    mail.login(email_account,password)
     mail.select('inbox')
-    type, data = mail.search(None, 'ALL')
+
+    type, data = mail.search(None, 'ALL') # #messages = imap.search(None, “(AFTER JAN-01-1990 SUBJECT Apples)
     mail_ids = data[0]
     id_list = mail_ids.split()
     
-    first_email_id = int(id_list[0])
-    latest_email_id = int(id_list[-1])
+    output = {}
 
-
-if __name__ == "__main__":
-    pass
+    for num in id_list:
+        typ, data = mail.fetch(num, '(RFC822)' )
+        raw_email = data[0][1]
+    # converts byte literal to string removing b''
+        raw_email_string = raw_email.decode('utf-8')
+        email_message = email.message_from_string(raw_email_string)
+        
+        for response_part in data:
+            if isinstance(response_part, tuple):
+                msg = email.message_from_string(response_part[1].decode('utf-8'))
+                email_subject = msg['subject']
+                #email_from = msg['from']
+                #print ('From : ' + email_from + '\n')
+                #print ('Subject : ' + email_subject + '\n')
+                #print(msg.get_payload(decode=True))
+                if "Order ID:" in email_subject:
+                    order_id = int(email_subject.split("ID: ")[1].split(" ")[0])
+                    if "confirm".upper() in email_subject.upper():
+                        output.update({order_id:True})
+                    elif "declin".upper() in email_subject.upper():
+                        output.update({order_id:False})
+                
+    mail.close()
+    mail.logout()
+    return output

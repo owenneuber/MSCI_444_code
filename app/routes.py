@@ -9,7 +9,7 @@ from flask import render_template, flash, redirect, url_for, request
 from app import app, db
 from app.forms import LoginForm, OrderForm
 from app.models import Users, Suppliers, Orders, InventoryInOrder, InventoryItems
-from app.place_order import send_order
+from app.place_order import send_order, read_response
 from flask_login import current_user, login_user, logout_user, login_required
 from datetime import datetime, timedelta
 # from sqlalchemy.orm import sessionmaker
@@ -26,6 +26,37 @@ def index():
     inv_for_display = InventoryItems.query.all() # inefficient
     if current_user.supplier_id: # if they are a supplier, they should only see their own products
         inv_for_display = InventoryItems.query.filter_by(supplier_id=current_user.supplier_id).all()
+    else: # otherwise, check for a delivery confirmation
+        responses = read_response() #dictionary of emails
+        refresh = False
+        if responses:
+            for order_id in responses:
+                order = Orders.query.filter_by(id=order_id).first()
+                if order.is_confirmed or order.is_confirmed == False: # unconfirmed/undenined orders are None
+                    continue # this order has already been confirmed or declined and the db updated. The email has not been deleted yet. Ignore it
+                if responses[order_id]: # if the order was confirmed
+                    order.is_confirmed = True
+                    db.session.add(order)
+                    db.session.commit()
+                    ####### Update the inventory quantities ########
+                    order_inventory = InventoryInOrder.query.filter_by(order_id=order_id).all()
+                    for ordered_inv in order_inventory:
+                        ordered_inv.inventory.SKUs += ordered_inv.SKUs
+                        db.session.add(ordered_inv.inventory)
+                        db.session.commit()
+                    flash("Note: Order number {} was confirmed. Expected delivery date of {}. The database has been updated."\
+                          .format(order_id, order.order_ETA))
+                    refresh = True
+                else:
+                    order.is_confirmed = False
+                    db.session.add(order)
+                    db.session.commit()
+                    flash("Note: Order number {} was declined".format(order_id))
+                    refresh = True
+                    
+            if refresh:
+                return redirect(url_for('index')) # refresh the page to show the user the flashed messages
+            
     for inventory in inv_for_display:
         inventories.append({
                 'id':inventory.id,
@@ -39,8 +70,9 @@ def index():
                 'variable_cost':inventory.variable_cost,
                 'demand':inventory.demand,
                 })
-    # TODO: add in the functionally determined stuff like reorder point and order quantity
-    # TODO: Send emails and parse the outputs
+    # TODO: add in the functionally determined optimal order quantity and Re-order point
+    # TODO: create buttons that allow inventory to be sorted (for status that will be WIP vs. complete)
+    # TODO: allow inventory to be modified on the homepage for admins
     ############ Place an Order ################
     form = OrderForm()
     if form.validate_on_submit():

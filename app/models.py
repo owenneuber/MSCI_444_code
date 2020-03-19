@@ -32,7 +32,7 @@ class Suppliers(db.Model): #Supplier Table
     id = db.Column(db.Integer,primary_key=True)
     name = db.Column(db.String)
     supplier_type = db.Column(db.String) # primary or secondary
-    email = db.Column(db.String, unique=True, index=True)
+    email = db.Column(db.String)
     location = db.Column(db.String)
     phone_number = db.Column(db.String, unique=True, index=True) # (777) 777-7777 format
     order_format = db.Column(db.String)
@@ -48,6 +48,7 @@ class Orders(db.Model): #Orders Table
     supplier_id = db.Column(db.Integer, db.ForeignKey("Suppliers.id"))
     order_placed = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     order_ETA = db.Column(db.Date)
+    is_confirmed = db.Column(db.Boolean)
     
     supplier = db.relationship('Suppliers', foreign_keys=[supplier_id])
     user = db.relationship('Users', foreign_keys=[user_id])
