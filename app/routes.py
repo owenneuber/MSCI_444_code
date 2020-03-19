@@ -71,6 +71,7 @@ def index():
                 'demand':inventory.demand,
                 })
     # TODO: add in the functionally determined optimal order quantity and Re-order point
+    # TODO: add a <br> after the Sort by
     ############ Place an Order ################
     form = OrderForm()
     if form.validate_on_submit():
