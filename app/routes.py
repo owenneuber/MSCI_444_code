@@ -12,10 +12,8 @@ from app.models import Users, Suppliers, Orders, InventoryInOrder, InventoryItem
 from app.place_order import send_order, read_response
 from flask_login import current_user, login_user, logout_user, login_required
 from datetime import datetime, timedelta
-# from sqlalchemy.orm import sessionmaker
 from werkzeug.urls import url_parse
-#engine = create_engine(DATABASE_URI)
-#session = Session()
+from app.support_functions import EOQ, reorder_point
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
@@ -69,9 +67,9 @@ def index():
                 'holding_cost':inventory.holding_cost,
                 'variable_cost':inventory.variable_cost,
                 'demand':inventory.demand,
+                'EOQ':EOQ(inventory.ordering_cost, inventory.holding_cost,inventory.demand),
+                'reorder_point':reorder_point(inventory.lead_time, inventory.demand)
                 })
-    # TODO: add in the functionally determined optimal order quantity and Re-order point
-    # TODO: add a <br> after the Sort by
     ############ Place an Order ################
     form = OrderForm()
     if form.validate_on_submit():
@@ -200,6 +198,8 @@ def namesort(): # hack to quickly get sorting to work. Basically just duplicatin
                 'holding_cost':inventory.holding_cost,
                 'variable_cost':inventory.variable_cost,
                 'demand':inventory.demand,
+                'EOQ':EOQ(inventory.ordering_cost, inventory.holding_cost,inventory.demand),
+                'reorder_point':reorder_point(inventory.lead_time, inventory.demand)
                 })
     ############ Place an Order ################
     form = OrderForm()
@@ -268,6 +268,8 @@ def typesort(): # hack to quickly get sorting to work. Basically just duplicatin
                 'holding_cost':inventory.holding_cost,
                 'variable_cost':inventory.variable_cost,
                 'demand':inventory.demand,
+                'EOQ':EOQ(inventory.ordering_cost, inventory.holding_cost,inventory.demand),
+                'reorder_point':reorder_point(inventory.lead_time, inventory.demand)
                 })
     ############ Place an Order ################
     form = OrderForm()
@@ -336,6 +338,8 @@ def costsort(): # hack to quickly get sorting to work. Basically just duplicatin
                 'holding_cost':inventory.holding_cost,
                 'variable_cost':inventory.variable_cost,
                 'demand':inventory.demand,
+                'EOQ':EOQ(inventory.ordering_cost, inventory.holding_cost,inventory.demand),
+                'reorder_point':reorder_point(inventory.lead_time, inventory.demand)
                 })
     ############ Place an Order ################
     form = OrderForm()
@@ -404,6 +408,8 @@ def suppliersort(): # hack to quickly get sorting to work. Basically just duplic
                 'holding_cost':inventory.holding_cost,
                 'variable_cost':inventory.variable_cost,
                 'demand':inventory.demand,
+                'EOQ':EOQ(inventory.ordering_cost, inventory.holding_cost,inventory.demand),
+                'reorder_point':reorder_point(inventory.lead_time, inventory.demand)
                 })
     ############ Place an Order ################
     form = OrderForm()

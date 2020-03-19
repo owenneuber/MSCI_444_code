@@ -77,12 +77,12 @@ class InventoryItems(db.Model): #table for Inventory in order
     item_name = db.Column(db.String)
     inventory_type = db.Column(db.String) # complete, WIP
     supplier_id = db.Column(db.Integer, db.ForeignKey("Suppliers.id"))
-    lead_time = db.Column(db.Integer) # maybe db.DateTime for adding days
+    lead_time = db.Column(db.Integer) # days
     SKUs = db.Column(db.Integer)
     ordering_cost = db.Column(db.Float)
-    holding_cost = db.Column(db.Float)
-    variable_cost = db.Column(db.Float)
-    demand = db.Column(db.Integer) # days
+    holding_cost = db.Column(db.Float) # per month
+    variable_cost = db.Column(db.Float) # per month
+    demand = db.Column(db.Integer) # per month
     
     supplier = db.relationship('Suppliers', foreign_keys=[supplier_id])
     

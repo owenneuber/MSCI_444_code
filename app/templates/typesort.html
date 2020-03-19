@@ -30,11 +30,13 @@
 			<th>Type</th>
 			<th>Supplier</th>
 			<th>SKUs</th>
-			<th>Lead Time</th>
-			<th>Ordering Cost</th>
-			<th>Holding Cost</th>
-			<th>Variable Cost</th>
-			<th>Demand</th>
+			<th>Lead Time (days)</th>
+			<th>Ordering Cost ($)</th>
+			<th>Holding Cost ($/month)</th>
+			<th>Variable Cost ($)</th>
+			<th>Demand (/month)</th>
+			<th>EOQ</th>
+			<th>Reorder Point</th>
 		</tr>
     	{% for inventory in inventories %}
 		<tr>
@@ -48,6 +50,8 @@
 			<th>{{ inventory.holding_cost }}</th>
 			<th>{{ inventory.variable_cost }}</th>
 			<th>{{ inventory.demand }}</th>
+			<th>{{ inventory.EOQ }}</th>
+			<th>{{ inventory.reorder_point }}</th>
 		</tr>
     	{% endfor %}
 	</table>
