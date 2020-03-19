@@ -7,7 +7,7 @@ Created on Sat Mar 14 15:39:03 2020
 
 from flask import render_template, flash, redirect, url_for, request
 from app import app, db
-from app.forms import LoginForm, OrderForm
+from app.forms import LoginForm, OrderForm, ModifyInventoryForm
 from app.models import Users, Suppliers, Orders, InventoryInOrder, InventoryItems
 from app.place_order import send_order, read_response
 from flask_login import current_user, login_user, logout_user, login_required
@@ -23,9 +23,9 @@ from werkzeug.urls import url_parse
 def index():
     ########## Display Table ############
     inventories = []
-    inv_for_display = InventoryItems.query.all() # inefficient
+    inv_for_display = InventoryItems.query.order_by(InventoryItems.id).all() # inefficient
     if current_user.supplier_id: # if they are a supplier, they should only see their own products
-        inv_for_display = InventoryItems.query.filter_by(supplier_id=current_user.supplier_id).all()
+        inv_for_display = InventoryItems.query.filter_by(supplier_id=current_user.supplier_id).order_by(InventoryItems.id).all()
     else: # otherwise, check for a delivery confirmation
         responses = read_response() #dictionary of emails
         refresh = False
@@ -72,7 +72,6 @@ def index():
                 })
     # TODO: add in the functionally determined optimal order quantity and Re-order point
     # TODO: create buttons that allow inventory to be sorted (for status that will be WIP vs. complete)
-    # TODO: allow inventory to be modified on the homepage for admins
     ############ Place an Order ################
     form = OrderForm()
     if form.validate_on_submit():
@@ -86,10 +85,45 @@ def index():
         send_order(order.id)
         flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
         return redirect(url_for('index'))
-    ################################
     
     return render_template('index.html', title='Home', inventories=inventories, form=form)
 
+
+@app.route('/edit', methods=['GET', 'POST'])
+@login_required
+def edit():
+    if current_user.user_type != "admin":
+        flash("Only Admins may make edits.")
+        return redirect(url_for('index'))
+    
+    form = ModifyInventoryForm()
+    if form.validate_on_submit():
+        product = InventoryItems.query.filter_by(id=form.product_mod_id.data).first()
+        if form.name.data:
+            product.item_name = form.name.data
+        if form.prod_type.data:
+            product.inventory_type = form.prod_type.data
+        if form.supplier.data:
+            new_sup_id = Suppliers.query.filter_by(name=form.supplier.data).first().id
+            product.supplier_id = new_sup_id
+        if form.SKUs.data:
+            product.SKUs = form.SKUs.data
+        if form.lead_time.data:
+            product.lead_time = form.lead_time.data
+        if form.ordering_cost.data:
+            product.ordering_cost = form.ordering_cost.data
+        if form.holding_cost.data:
+            product.holding_cost = form.holding_cost.data
+        if form.variable_cost.data:
+            product.variable_cost = form.variable_cost.data
+        if form.demand.data:
+            product.demand = form.demand.data
+        db.session.add(product)
+        db.session.commit()
+        flash("Changes made to product number {}.".format(product.id))
+        return redirect(url_for('index'))
+    
+    return render_template('edit.html', title='Edit', form=form)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

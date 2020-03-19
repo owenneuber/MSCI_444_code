@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+	{% if current_user.user_type == "admin" %}
+		<h3>Modify Inventory Record: </h3>
+		<form action="" method="post">{{ form.hidden_tag() }}
+			<div>{{ form.product_mod_id(size=32) }} {{ form.name(size=32) }} {{ form.prod_type(size=32) }} {{ form.supplier(size=32) }} {{ form.SKUs(size=32) }} {{ form.lead_time(size=32) }} {{ form.ordering_cost(size=32) }} {{ form.holding_cost(size=32) }} {{ form.variable_cost(size=32) }} {{ form.demand(size=32) }} {{ form.submit() }}</div>
+			<div>{% for error in form.product_mod_id.errors %}
+		        <span style="color: red;">[{{ error }}]</span>
+		        {% endfor %}
+				{% for error in form.prod_type.errors %}
+		        <span style="color: red;">[{{ error }}]</span>
+		        {% endfor %}
+				{% for error in form.supplier.errors %}
+		        <span style="color: red;">[{{ error }}]</span>
+		        {% endfor %}
+			</div>
+		</form>
+	{% endif %}
+{% endblock %}
