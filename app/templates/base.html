@@ -16,6 +16,7 @@
         {% endif %}
 		{% if current_user.user_type == "admin" %}
 		<a href="{{ url_for('edit') }}">Edit</a>
+		<a href="{{ url_for('voice') }}">Voice Order</a>
 		{% endif %}
 		</div>
         <hr>

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+	{% if current_user.user_type == "admin" %}
+		<h3>Place an order by voice: </h3>
+		<form action="" method="post">{{ form.hidden_tag() }}
+			<div>{{ form.submit() }}</div>
+		</form>
+	{% endif %}
+{% endblock %}

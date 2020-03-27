@@ -7,13 +7,13 @@ Created on Sat Mar 14 15:39:03 2020
 
 from flask import render_template, flash, redirect, url_for, request
 from app import app, db
-from app.forms import LoginForm, OrderForm, ModifyInventoryForm
+from app.forms import LoginForm, OrderForm, ModifyInventoryForm, VoiceOrderForm
 from app.models import Users, Suppliers, Orders, InventoryInOrder, InventoryItems
 from app.place_order import send_order, read_response
 from flask_login import current_user, login_user, logout_user, login_required
 from datetime import datetime, timedelta
 from werkzeug.urls import url_parse
-from app.support_functions import EOQ, reorder_point
+from app.support_functions import EOQ, reorder_point, voice_order
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
@@ -145,6 +145,34 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+@app.route('/voice', methods=['GET', 'POST'])
+@login_required
+def voice():
+    if current_user.user_type != "admin":
+        flash("Only Admins may place orders.")
+        return redirect(url_for('index'))
+    form = VoiceOrderForm()
+    if form.validate_on_submit():
+        product_name, SKUs = voice_order()
+        if product_name == False:
+            flash("Your order '{}' did not follow the expected format. Your order should start with 'place an order for'".format(SKUs))
+            return redirect(url_for('voice'))
+        product = InventoryItems.query.filter_by(item_name=product_name).first()
+        if product == None:
+            flash("We could not find product {}. Please ensure your product matches our inventory.".format(product_name))
+            return redirect(url_for('voice'))
+        order = Orders(user_id=current_user.id, supplier_id=product.supplier_id, order_ETA=datetime.utcnow().date() + timedelta(days=product.lead_time))
+        db.session.add(order)
+        db.session.commit()
+        inv_in_order = InventoryInOrder(order_id=order.id, SKUs=SKUs, inventory_id=product.id)
+        db.session.add(inv_in_order)
+        db.session.commit()
+        send_order(order.id)
+        flash('Placed an order for {} SKUs of {}. Pending supplier confirmation.'.format(inv_in_order.SKUs, product.item_name))
+        return redirect(url_for('index'))
+    
+    return render_template('voice.html', title='Voice Order', form=form)
 
 
 @app.route('/namesort', methods=['GET', 'POST'])

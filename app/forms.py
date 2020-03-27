@@ -62,3 +62,6 @@ class ModifyInventoryForm(FlaskForm):
             supplier_instance = Suppliers.query.filter_by(name=supplier.data).first()
             if not supplier_instance: #they picked a supplier not in our records
                 raise ValidationError("Selected supplier must be an existing supplier.")
+                
+class VoiceOrderForm(FlaskForm):
+    submit = SubmitField('Place Order')
